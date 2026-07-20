@@ -28,16 +28,16 @@ fun StudyScreen(
     wordIdsJson: String,
     onStartExample: (List<WordEntity>) -> Unit,
     onFinish: () -> Unit,
-    viewModel: StudyViewModel = viewModel()
+    vm: StudyViewModel = viewModel()
 ) {
     LaunchedEffect(wordIdsJson) {
-        viewModel.init(wordIdsJson, mode)
+        vm.init(wordIdsJson, mode)
     }
 
-    val words by viewModel.words.collectAsState()
-    val currentIndex by viewModel.currentIndex.collectAsState()
-    val isFlipped by viewModel.isFlipped.collectAsState()
-    val isFinished by viewModel.isFinished.collectAsState()
+    val words by vm.words.collectAsState()
+    val currentIndex by vm.currentIndex.collectAsState()
+    val isFlipped by vm.isFlipped.collectAsState()
+    val isFinished by vm.isFinished.collectAsState()
 
     LaunchedEffect(isFinished) {
         if (isFinished) {
@@ -45,7 +45,7 @@ fun StudyScreen(
         }
     }
 
-    val word = viewModel.currentWord()
+    val word = vm.currentWord()
 
     Column(
         modifier = Modifier
@@ -93,15 +93,15 @@ fun StudyScreen(
                 isFlipped = isFlipped,
                 modifier = Modifier.weight(1f),
                 onFlip = {
-                    viewModel.flip()
-                    viewModel.loadProgress()
+                    vm.flip()
+                    vm.loadProgress()
                 }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             RatingButtons(
-                onRate = { quality -> viewModel.rate(quality) }
+                onRate = { quality -> vm.rate(quality) }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -112,7 +112,7 @@ fun StudyScreen(
             ) {
                 OutlinedButton(
                     onClick = {
-                        val allWords = viewModel.getAllWords()
+                        val allWords = vm.getAllWords()
                         if (allWords.isNotEmpty()) {
                             onStartExample(allWords)
                         }
@@ -122,7 +122,7 @@ fun StudyScreen(
                 }
 
                 OutlinedButton(
-                    onClick = { viewModel.skip() }
+                    onClick = { vm.skip() }
                 ) {
                     Text("下一张")
                 }

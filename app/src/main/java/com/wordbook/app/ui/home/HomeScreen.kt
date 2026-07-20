@@ -16,10 +16,10 @@ import com.wordbook.app.data.entity.WordEntity
 fun HomeScreen(
     onStartStudy: (List<WordEntity>) -> Unit,
     onStartReview: (List<WordEntity>) -> Unit,
-    viewModel: HomeViewModel = viewModel()
+    vm: HomeViewModel = viewModel()
 ) {
-    val isLoading by viewModel.isLoading.collectAsState()
-    val dueCount by viewModel.dueCount.collectAsState()
+    val isLoading by vm.isLoading.collectAsState()
+    val dueCount by vm.dueCount.collectAsState()
 
     var showStudyDialog by remember { mutableStateOf(false) }
     var showReviewDialog by remember { mutableStateOf(false) }
@@ -97,7 +97,7 @@ fun HomeScreen(
                 TextButton(onClick = {
                     showStudyDialog = false
                     val count = studyCount.toIntOrNull() ?: 10
-                    viewModel.getLearningWords(count) { words ->
+                    vm.getLearningWords(count) { words ->
                         if (words.isNotEmpty()) {
                             onStartStudy(words)
                         }
@@ -135,7 +135,7 @@ fun HomeScreen(
                 TextButton(onClick = {
                     showReviewDialog = false
                     val count = reviewCount.toIntOrNull() ?: 10
-                    viewModel.getReviewWords(count) { words ->
+                    vm.getReviewWords(count) { words ->
                         if (words.isNotEmpty()) {
                             onStartReview(words)
                         }

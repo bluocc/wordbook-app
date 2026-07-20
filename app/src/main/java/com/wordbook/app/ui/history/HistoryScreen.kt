@@ -22,9 +22,9 @@ import com.wordbook.app.ui.theme.Grey
 @Composable
 fun HistoryScreen(
     onWordClick: (Long) -> Unit,
-    viewModel: HistoryViewModel = viewModel()
+    vm: HistoryViewModel = viewModel()
 ) {
-    val items by viewModel.items.collectAsState()
+    val items by vm.items.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(

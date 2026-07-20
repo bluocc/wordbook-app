@@ -41,13 +41,13 @@ class DetailViewModel : ViewModel() {
 fun DetailScreen(
     wordId: Long,
     onBack: () -> Unit,
-    viewModel: DetailViewModel = viewModel()
+    vm: DetailViewModel = viewModel()
 ) {
     LaunchedEffect(wordId) {
-        viewModel.load(wordId)
+        vm.load(wordId)
     }
 
-    val word by viewModel.word.collectAsState()
+    val word by vm.word.collectAsState()
 
     Scaffold(
         topBar = {

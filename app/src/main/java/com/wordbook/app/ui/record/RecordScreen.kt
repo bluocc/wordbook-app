@@ -22,9 +22,9 @@ import com.wordbook.app.util.DateUtils
 import java.time.LocalDate
 
 @Composable
-fun RecordScreen(viewModel: RecordViewModel = viewModel()) {
-    val addedDates by viewModel.addedDates.collectAsState()
-    val selectedDayCount by viewModel.selectedDayCount.collectAsState()
+fun RecordScreen(vm: RecordViewModel = viewModel()) {
+    val addedDates by vm.addedDates.collectAsState()
+    val selectedDayCount by vm.selectedDayCount.collectAsState()
 
     val today = LocalDate.now()
     var currentYear by remember { mutableIntStateOf(today.year) }
@@ -124,7 +124,7 @@ fun RecordScreen(viewModel: RecordViewModel = viewModel()) {
                             )
                             .clickable {
                                 selectedDay = Triple(currentYear, currentMonth, day)
-                                viewModel.selectDay(currentYear, currentMonth, day)
+                                vm.selectDay(currentYear, currentMonth, day)
                             },
                         contentAlignment = Alignment.Center
                     ) {
