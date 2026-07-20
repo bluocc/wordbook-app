@@ -1,6 +1,5 @@
 package com.wordbook.app.ui.wordlist
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -18,10 +17,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wordbook.app.WordbookApp
 import com.wordbook.app.data.entity.WordEntity
-import com.wordbook.app.data.entity.LearningProgress
 import com.wordbook.app.data.repository.WordRepository
 import com.wordbook.app.ui.navigation.jsonToWordIds
-import com.wordbook.app.util.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -38,24 +35,6 @@ class WordListViewModel : ViewModel() {
         viewModelScope.launch {
             val ids = jsonToWordIds(wordIdsJson)
             _words.value = ids.mapNotNull { repository.getWordById(it) }
-        }
-    }
-
-    fun addWordsToPool(onDone: () -> Unit) {
-        viewModelScope.launch {
-            val now = DateUtils.nowMillis()
-            for (w in _words.value) {
-                val existing = repository.getProgress(w.id)
-                if (existing == null) {
-                    repository.upsertProgress(
-                        LearningProgress(
-                            wordId = w.id,
-                            addedToPool = now
-                        )
-                    )
-                }
-            }
-            onDone()
         }
     }
 }
@@ -127,11 +106,7 @@ fun WordListScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Button(
-            onClick = {
-                vm.addWordsToPool {
-                    onNext(mode, wordIdsJson)
-                }
-            },
+            onClick = { onNext(mode, wordIdsJson) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(12.dp)
         ) {

@@ -93,6 +93,7 @@ fun StudyScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                OutlinedButton(onClick = { vm.skip() }) { Text("下一个") }
                 OutlinedButton(onClick = { onStartExample(vm.getAllWords()) }) {
                     Text("例句练习")
                 }

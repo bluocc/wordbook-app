@@ -47,8 +47,14 @@ class StudyViewModel : ViewModel() {
             _words.value = list
             poolSize = list.size
 
+            val now = DateUtils.nowMillis()
             for (w in list) {
-                progressCache[w.id] = repository.getProgress(w.id)
+                var prev = repository.getProgress(w.id)
+                if (prev == null) {
+                    prev = LearningProgress(wordId = w.id, addedToPool = now)
+                    repository.upsertProgress(prev)
+                }
+                progressCache[w.id] = prev
             }
 
             if (list.isNotEmpty()) {
