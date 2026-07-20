@@ -182,9 +182,24 @@ private fun ExampleBack(item: ExampleItem) {
             }
         }
         Text(annotated, fontSize = 22.sp, textAlign = TextAlign.Center, lineHeight = 34.sp)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = item.word,
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+        )
+
         Spacer(modifier = Modifier.height(20.dp))
         HorizontalDivider()
         Spacer(modifier = Modifier.height(20.dp))
-        Text(item.translation, fontSize = 18.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f))
+
+        Text(
+            text = item.translation,
+            fontSize = 18.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+        )
     }
 }

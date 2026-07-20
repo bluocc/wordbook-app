@@ -28,13 +28,11 @@ class RecordViewModel : ViewModel() {
     }
 
     fun loadDates() {
-        if (_loaded.value) return
         viewModelScope.launch {
             val dates = repository.getAddedDates()
                 .map { DateUtils.startOfDay(it) }
                 .toSet()
             _addedDates.value = dates
-            _loaded.value = true
         }
     }
 

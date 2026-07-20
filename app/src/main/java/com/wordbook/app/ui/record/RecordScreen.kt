@@ -31,6 +31,8 @@ fun RecordScreen(vm: RecordViewModel = viewModel()) {
     var currentMonth by remember { mutableIntStateOf(today.monthValue) }
     var selectedDay by remember { mutableStateOf<Triple<Int, Int, Int>?>(null) }
 
+    LaunchedEffect(Unit) { vm.loadDates() }
+
     val monthName = DateUtils.monthName(currentYear, currentMonth)
     val daysInMonth = DateUtils.daysInMonth(currentYear, currentMonth)
     val firstDayOfWeek = DateUtils.firstDayOfWeek(currentYear, currentMonth)
