@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wordbook.app.WordbookApp
 import com.wordbook.app.data.entity.WordEntity
 import com.wordbook.app.data.repository.WordRepository
