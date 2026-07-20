@@ -51,9 +51,18 @@ class DetailViewModel : ViewModel() {
         viewModelScope.launch {
             val prev = repository.getProgress(wordId)
             val now = DateUtils.nowMillis()
-            val p = SM2Scheduler.calculate(quality, now, wordId, prev)
-            repository.upsertProgress(p)
-            _progress.value = p
+            val current = prev?.lastQuality ?: 0
+            if (quality == current) {
+                if (prev != null) {
+                    val cleared = prev.copy(lastQuality = 0, lastReview = now)
+                    repository.upsertProgress(cleared)
+                    _progress.value = cleared
+                }
+            } else {
+                val p = SM2Scheduler.calculate(quality, now, wordId, prev)
+                repository.upsertProgress(p)
+                _progress.value = p
+            }
         }
     }
 }

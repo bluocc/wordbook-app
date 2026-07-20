@@ -36,10 +36,11 @@ fun HistoryScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(items, key = { it.word.id }) { item ->
                     val bgColor = if (item.progress != null) qualityColor(item.progress!!.lastQuality) else Grey
@@ -47,18 +48,20 @@ fun HistoryScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(100.dp)
                             .clickable { onWordClick(item.word.id) },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.12f)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
                             Text(
                                 text = item.word.word,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = bgColor,
                                 textAlign = TextAlign.Center,
@@ -67,15 +70,15 @@ fun HistoryScreen(
                             )
                             Text(
                                 text = item.word.pronunciation,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = item.word.explanation,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center
