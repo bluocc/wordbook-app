@@ -1,6 +1,6 @@
 package com.wordbook.app.ui.example
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -173,25 +173,24 @@ private fun ExampleCard(
     modifier: Modifier = Modifier,
     onFlip: () -> Unit
 ) {
-    val rotation by animateFloatAsState(targetValue = if (isFlipped) 180f else 0f, label = "flip")
-
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer { rotationY = rotation; cameraDistance = 12f * density }
             .clickable { onFlip() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            if (rotation <= 90f) {
-                ExampleFront(item = item)
-            } else {
-                ExampleBack(item = item)
+        Crossfade(
+            targetState = isFlipped,
+            modifier = Modifier.fillMaxSize()
+        ) { flipped ->
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!flipped) ExampleFront(item = item)
+                else ExampleBack(item = item)
             }
         }
     }
@@ -241,7 +240,6 @@ private fun ExampleBack(item: ExampleItem) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .graphicsLayer { rotationY = 180f }
             .verticalScroll(scrollState)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
