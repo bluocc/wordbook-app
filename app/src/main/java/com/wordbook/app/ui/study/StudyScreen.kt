@@ -1,6 +1,6 @@
 package com.wordbook.app.ui.study
 
-import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,8 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -91,6 +91,7 @@ fun StudyScreen(
             FlashCard(
                 word = word,
                 isFlipped = isFlipped,
+                modifier = Modifier.weight(1f),
                 onFlip = {
                     viewModel.flip()
                     viewModel.loadProgress()
@@ -134,14 +135,14 @@ fun StudyScreen(
 fun FlashCard(
     word: WordEntity,
     isFlipped: Boolean,
-    onFlip: () -> Unit
+    onFlip: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val rotation by animateFloatAsState(targetValue = if (isFlipped) 180f else 0f, label = "flip")
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .weight(1f)
             .graphicsLayer { rotationY = rotation; cameraDistance = 12f * density }
             .clickable { onFlip() },
         shape = RoundedCornerShape(16.dp),

@@ -1,6 +1,6 @@
 package com.wordbook.app.ui.example
 
-import androidx.compose.animation.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -88,16 +88,16 @@ class ExampleViewModel : ViewModel() {
 fun ExampleScreen(
     wordIdsJson: String,
     onFinish: () -> Unit,
-    viewModel: ExampleViewModel = viewModel()
+    exampleViewModel: ExampleViewModel = viewModel()
 ) {
     LaunchedEffect(wordIdsJson) {
-        viewModel.init(wordIdsJson)
+        exampleViewModel.init(wordIdsJson)
     }
 
-    val examples by viewModel.examples.collectAsState()
-    val currentIndex by viewModel.currentIndex.collectAsState()
-    val isFlipped by viewModel.isFlipped.collectAsState()
-    val item = viewModel.current()
+    val examples by exampleViewModel.examples.collectAsState()
+    val currentIndex by exampleViewModel.currentIndex.collectAsState()
+    val isFlipped by exampleViewModel.isFlipped.collectAsState()
+    val item = exampleViewModel.current()
 
     Column(
         modifier = Modifier
@@ -136,7 +136,8 @@ fun ExampleScreen(
             ExampleCard(
                 item = item,
                 isFlipped = isFlipped,
-                onFlip = { viewModel.flip() }
+                modifier = Modifier.weight(1f),
+                onFlip = { exampleViewModel.flip() }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -152,7 +153,7 @@ fun ExampleScreen(
                         if (isLast) {
                             onFinish()
                         } else {
-                            viewModel.next()
+                            exampleViewModel.next()
                         }
                     },
                     modifier = Modifier.weight(1f).padding(end = 8.dp).height(48.dp)
@@ -168,14 +169,14 @@ fun ExampleScreen(
 private fun ExampleCard(
     item: ExampleItem,
     isFlipped: Boolean,
+    modifier: Modifier = Modifier,
     onFlip: () -> Unit
 ) {
     val rotation by animateFloatAsState(targetValue = if (isFlipped) 180f else 0f, label = "flip")
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .weight(1f)
             .graphicsLayer { rotationY = rotation; cameraDistance = 12f * density }
             .clickable { onFlip() },
         shape = RoundedCornerShape(16.dp),

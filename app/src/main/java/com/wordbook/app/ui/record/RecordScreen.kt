@@ -29,7 +29,7 @@ fun RecordScreen(viewModel: RecordViewModel = viewModel()) {
     val today = LocalDate.now()
     var currentYear by remember { mutableIntStateOf(today.year) }
     var currentMonth by remember { mutableIntStateOf(today.monthValue) }
-    var selectedDay by remember { mutableStateOf<Pair<Int, Int, Int>?>(null) }
+    var selectedDay by remember { mutableStateOf<Triple<Int, Int, Int>?>(null) }
 
     val monthName = DateUtils.monthName(currentYear, currentMonth)
     val daysInMonth = DateUtils.daysInMonth(currentYear, currentMonth)
@@ -58,7 +58,7 @@ fun RecordScreen(viewModel: RecordViewModel = viewModel()) {
             }
 
             Text(
-                text = "$currentYear年 $monthName",
+                text = "${currentYear}年 $monthName",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium
             )

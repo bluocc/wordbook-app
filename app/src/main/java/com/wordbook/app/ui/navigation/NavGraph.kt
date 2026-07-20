@@ -12,8 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavigationBar
-import androidx.navigation.compose.NavigationBarItem
+import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -165,7 +164,7 @@ private fun NavHostControllerWithData(
                 navArgument("wordId") { type = NavType.LongType }
             )
         ) { backStackEntry ->
-            val wordId = backStackEntry.arguments?.getLong("wordId") ?: 0
+            val wordId = backStackEntry.arguments?.getLong("wordId") ?: 0L
             DetailScreen(wordId = wordId, onBack = { navController.popBackStack() })
         }
     }
