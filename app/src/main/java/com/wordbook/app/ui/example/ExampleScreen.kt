@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -29,12 +28,9 @@ import com.wordbook.app.ui.navigation.jsonToWordIds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
-data class ExampleItem(
-    val word: String,
-    val sentence: String,
-    val translation: String
-)
+data class ExampleItem(val word: String, val sentence: String, val translation: String)
 
 class ExampleViewModel : ViewModel() {
 
@@ -44,11 +40,14 @@ class ExampleViewModel : ViewModel() {
     private val _examples = MutableStateFlow<List<ExampleItem>>(emptyList())
     val examples: StateFlow<List<ExampleItem>> = _examples
 
-    private val _currentIndex = MutableStateFlow(0)
-    val currentIndex: StateFlow<Int> = _currentIndex
+    private val _currentItem = MutableStateFlow<ExampleItem?>(null)
+    val currentItem: StateFlow<ExampleItem?> = _currentItem
 
     private val _isFlipped = MutableStateFlow(false)
     val isFlipped: StateFlow<Boolean> = _isFlipped
+
+    private var currentIndex = -1
+    private var listSize = 0
 
     fun init(wordIdsJson: String) {
         viewModelScope.launch {
@@ -56,32 +55,35 @@ class ExampleViewModel : ViewModel() {
             val words = ids.mapNotNull { repository.getWordById(it) }
             val items = mutableListOf<ExampleItem>()
             for (w in words) {
-                if (w.sentence1.isNotBlank()) {
-                    items.add(ExampleItem(w.word, w.sentence1, w.translation1))
-                }
-                if (w.sentence2.isNotBlank()) {
-                    items.add(ExampleItem(w.word, w.sentence2, w.translation2))
-                }
+                if (w.sentence1.isNotBlank()) items.add(ExampleItem(w.word, w.sentence1, w.translation1))
+                if (w.sentence2.isNotBlank()) items.add(ExampleItem(w.word, w.sentence2, w.translation2))
             }
-            _examples.value = items.shuffled()
+            _examples.value = items
+            listSize = items.size
+            if (items.isNotEmpty()) {
+                currentIndex = pickRandomIndex(-1)
+                _currentItem.value = items[currentIndex]
+            }
         }
     }
 
-    fun flip() {
-        _isFlipped.value = !_isFlipped.value
-    }
+    fun flip() { _isFlipped.value = !_isFlipped.value }
 
     fun next() {
         _isFlipped.value = false
-        if (_currentIndex.value + 1 < _examples.value.size) {
-            _currentIndex.value = _currentIndex.value + 1
+        val next = pickRandomIndex(currentIndex)
+        if (next in _examples.value.indices) {
+            currentIndex = next
+            _currentItem.value = _examples.value[next]
         }
     }
 
-    fun current(): ExampleItem? {
-        val list = _examples.value
-        val idx = _currentIndex.value
-        return if (list.isNotEmpty() && idx < list.size) list[idx] else null
+    private fun pickRandomIndex(exclude: Int): Int {
+        if (listSize <= 0) return 0
+        if (listSize == 1) return 0
+        var idx: Int
+        do { idx = Random.nextInt(listSize) } while (idx == exclude && listSize > 1)
+        return idx
     }
 }
 
@@ -89,108 +91,50 @@ class ExampleViewModel : ViewModel() {
 fun ExampleScreen(
     wordIdsJson: String,
     onFinish: () -> Unit,
-    exampleViewModel: ExampleViewModel = viewModel()
+    vm: ExampleViewModel = viewModel()
 ) {
-    LaunchedEffect(wordIdsJson) {
-        exampleViewModel.init(wordIdsJson)
-    }
+    LaunchedEffect(wordIdsJson) { vm.init(wordIdsJson) }
+    val examples by vm.examples.collectAsState()
+    val item by vm.currentItem.collectAsState()
+    val isFlipped by vm.isFlipped.collectAsState()
 
-    val examples by exampleViewModel.examples.collectAsState()
-    val currentIndex by exampleViewModel.currentIndex.collectAsState()
-    val isFlipped by exampleViewModel.isFlipped.collectAsState()
-    val item = exampleViewModel.current()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         if (examples.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "暂无例句",
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("暂无例句", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
             return@Column
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "例句练习  ${currentIndex + 1}/${examples.size}",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "例句练习", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (item != null) {
-            ExampleCard(
-                item = item,
-                isFlipped = isFlipped,
-                modifier = Modifier.weight(1f),
-                onFlip = { exampleViewModel.flip() }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { vm.flip() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                val isLast = currentIndex >= examples.size - 1
-
-                Button(
-                    onClick = {
-                        if (isLast) {
-                            onFinish()
-                        } else {
-                            exampleViewModel.next()
-                        }
-                    },
-                    modifier = Modifier.weight(1f).padding(end = 8.dp).height(48.dp)
-                ) {
-                    Text(if (isLast) "结束" else "下一个", fontSize = 16.sp)
+                Crossfade(targetState = isFlipped, modifier = Modifier.fillMaxSize()) { flipped ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (!flipped) ExampleFront(item!!) else ExampleBack(item!!)
+                    }
                 }
             }
-        }
-    }
-}
 
-@Composable
-private fun ExampleCard(
-    item: ExampleItem,
-    isFlipped: Boolean,
-    modifier: Modifier = Modifier,
-    onFlip: () -> Unit
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onFlip() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Crossfade(
-            targetState = isFlipped,
-            modifier = Modifier.fillMaxSize()
-        ) { flipped ->
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!flipped) ExampleFront(item = item)
-                else ExampleBack(item = item)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                OutlinedButton(onClick = { vm.next() }, modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text("下一个")
+                }
+                OutlinedButton(onClick = onFinish, modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text("结束", color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
@@ -198,90 +142,49 @@ private fun ExampleCard(
 
 @Composable
 private fun ExampleFront(item: ExampleItem) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        val annotated = buildAnnotatedString {
-            val lower = item.sentence.lowercase()
-            val wordLower = item.word.lowercase()
-            var index = 0
-
-            while (index < lower.length) {
-                val found = lower.indexOf(wordLower, index)
-                if (found == -1) {
-                    append(item.sentence.substring(index))
-                    break
-                }
-                append(item.sentence.substring(index, found))
-                withStyle(SpanStyle(color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)) {
-                    append(item.sentence.substring(found, found + item.word.length))
-                }
-                index = found + item.word.length
+    val annotated = buildAnnotatedString {
+        val lower = item.sentence.lowercase()
+        val wl = item.word.lowercase()
+        var i = 0
+        while (i < lower.length) {
+            val f = lower.indexOf(wl, i)
+            if (f == -1) { append(item.sentence.substring(i)); break }
+            append(item.sentence.substring(i, f))
+            withStyle(SpanStyle(color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)) {
+                append(item.sentence.substring(f, f + item.word.length))
             }
+            i = f + item.word.length
         }
-
-        Text(
-            text = annotated,
-            fontSize = 24.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 36.sp
-        )
     }
+    Text(annotated, fontSize = 24.sp, textAlign = TextAlign.Center, lineHeight = 36.sp, modifier = Modifier.padding(24.dp))
 }
 
 @Composable
 private fun ExampleBack(item: ExampleItem) {
-    val scrollState = rememberScrollState()
-
+    val scroll = rememberScrollState()
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(scroll).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         val annotated = buildAnnotatedString {
             val lower = item.sentence.lowercase()
-            val wordLower = item.word.lowercase()
-            var index = 0
-
-            while (index < lower.length) {
-                val found = lower.indexOf(wordLower, index)
-                if (found == -1) {
-                    append(item.sentence.substring(index))
-                    break
-                }
-                append(item.sentence.substring(index, found))
+            val wl = item.word.lowercase()
+            var i = 0
+            while (i < lower.length) {
+                val f = lower.indexOf(wl, i)
+                if (f == -1) { append(item.sentence.substring(i)); break }
+                append(item.sentence.substring(i, f))
                 withStyle(SpanStyle(color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)) {
-                    append(item.sentence.substring(found, found + item.word.length))
+                    append(item.sentence.substring(f, f + item.word.length))
                 }
-                index = found + item.word.length
+                i = f + item.word.length
             }
         }
-
-        Text(
-            text = annotated,
-            fontSize = 24.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 36.sp
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+        Text(annotated, fontSize = 22.sp, textAlign = TextAlign.Center, lineHeight = 34.sp)
+        Spacer(modifier = Modifier.height(20.dp))
         HorizontalDivider()
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = item.translation,
-            fontSize = 20.sp,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(item.translation, fontSize = 18.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f))
     }
 }

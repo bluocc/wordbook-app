@@ -24,6 +24,7 @@ import com.wordbook.app.ui.history.HistoryScreen
 import com.wordbook.app.ui.home.HomeScreen
 import com.wordbook.app.ui.record.RecordScreen
 import com.wordbook.app.ui.study.StudyScreen
+import com.wordbook.app.ui.wordlist.WordListScreen
 import com.google.gson.Gson
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -34,17 +35,10 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 
 val bottomTabs = listOf(Screen.Home, Screen.History, Screen.Record)
 
-fun wordListToJson(words: List<WordEntity>): String {
-    return Gson().toJson(words.map { it.id })
-}
+fun wordListToJson(words: List<WordEntity>): String = Gson().toJson(words.map { it.id })
 
-fun jsonToWordIds(json: String): List<Long> {
-    return try {
-        Gson().fromJson(json, Array<Long>::class.java).toList()
-    } catch (e: Exception) {
-        emptyList()
-    }
-}
+fun jsonToWordIds(json: String): List<Long> =
+    try { Gson().fromJson(json, Array<Long>::class.java).toList() } catch (_: Exception) { emptyList() }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +46,6 @@ fun NavGraph() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
     val showBottomBar = currentRoute in bottomTabs.map { it.route }
 
     Scaffold(
@@ -79,93 +72,81 @@ fun NavGraph() {
             }
         }
     ) { innerPadding ->
-        NavHostControllerWithData(
+        NavHost(
             navController = navController,
-            innerPadding = innerPadding
-        )
-    }
-}
+            startDestination = Screen.Home.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Home.route) {
+                HomeScreen(
+                    onStartStudy = { words ->
+                        navController.navigate("wordlist/learning/${wordListToJson(words)}")
+                    },
+                    onStartReview = { words ->
+                        navController.navigate("wordlist/review/${wordListToJson(words)}")
+                    }
+                )
+            }
 
-@Composable
-private fun NavHostControllerWithData(
-    navController: NavHostController,
-    innerPadding: androidx.compose.foundation.layout.PaddingValues
-) {
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Home.route,
-        modifier = Modifier.padding(innerPadding)
-    ) {
-        composable(Screen.Home.route) {
-            HomeScreen(
-                onStartStudy = { words ->
-                    val json = wordListToJson(words)
-                    navController.navigate("study/learning/$json")
-                },
-                onStartReview = { words ->
-                    val json = wordListToJson(words)
-                    navController.navigate("study/review/$json")
-                }
-            )
-        }
+            composable(Screen.History.route) {
+                HistoryScreen(onWordClick = { id -> navController.navigate("detail/$id") })
+            }
 
-        composable(Screen.History.route) {
-            HistoryScreen(
-                onWordClick = { wordId ->
-                    navController.navigate("detail/$wordId")
-                }
-            )
-        }
+            composable(Screen.Record.route) {
+                RecordScreen()
+            }
 
-        composable(Screen.Record.route) {
-            RecordScreen()
-        }
+            composable(
+                route = "wordlist/{mode}/{wordIds}",
+                arguments = listOf(
+                    navArgument("mode") { type = NavType.StringType },
+                    navArgument("wordIds") { type = NavType.StringType }
+                )
+            ) { entry ->
+                val mode = entry.arguments?.getString("mode") ?: "learning"
+                val json = entry.arguments?.getString("wordIds") ?: "[]"
+                WordListScreen(
+                    wordIdsJson = json,
+                    mode = mode,
+                    onNext = { m, j -> navController.navigate("study/$m/$j") }
+                )
+            }
 
-        composable(
-            route = "study/{mode}/{wordIds}",
-            arguments = listOf(
-                navArgument("mode") { type = NavType.StringType },
-                navArgument("wordIds") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val mode = backStackEntry.arguments?.getString("mode") ?: "learning"
-            val wordIdsJson = backStackEntry.arguments?.getString("wordIds") ?: "[]"
-            StudyScreen(
-                mode = mode,
-                wordIdsJson = wordIdsJson,
-                onStartExample = { words ->
-                    val json = wordListToJson(words)
-                    navController.navigate("example/$json")
-                },
-                onFinish = {
-                    navController.popBackStack(Screen.Home.route, inclusive = false)
-                }
-            )
-        }
+            composable(
+                route = "study/{mode}/{wordIds}",
+                arguments = listOf(
+                    navArgument("mode") { type = NavType.StringType },
+                    navArgument("wordIds") { type = NavType.StringType }
+                )
+            ) { entry ->
+                val mode = entry.arguments?.getString("mode") ?: "learning"
+                val json = entry.arguments?.getString("wordIds") ?: "[]"
+                StudyScreen(
+                    mode = mode,
+                    wordIdsJson = json,
+                    onStartExample = { words -> navController.navigate("example/${wordListToJson(words)}") },
+                    onFinish = { navController.popBackStack(Screen.Home.route, inclusive = false) }
+                )
+            }
 
-        composable(
-            route = "example/{wordIds}",
-            arguments = listOf(
-                navArgument("wordIds") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val wordIdsJson = backStackEntry.arguments?.getString("wordIds") ?: "[]"
-            ExampleScreen(
-                wordIdsJson = wordIdsJson,
-                onFinish = {
-                    navController.popBackStack(Screen.Home.route, inclusive = false)
-                }
-            )
-        }
+            composable(
+                route = "example/{wordIds}",
+                arguments = listOf(navArgument("wordIds") { type = NavType.StringType })
+            ) { entry ->
+                val json = entry.arguments?.getString("wordIds") ?: "[]"
+                ExampleScreen(
+                    wordIdsJson = json,
+                    onFinish = { navController.popBackStack(Screen.Home.route, inclusive = false) }
+                )
+            }
 
-        composable(
-            route = "detail/{wordId}",
-            arguments = listOf(
-                navArgument("wordId") { type = NavType.LongType }
-            )
-        ) { backStackEntry ->
-            val wordId = backStackEntry.arguments?.getLong("wordId") ?: 0L
-            DetailScreen(wordId = wordId, onBack = { navController.popBackStack() })
+            composable(
+                route = "detail/{wordId}",
+                arguments = listOf(navArgument("wordId") { type = NavType.LongType })
+            ) { entry ->
+                val wordId = entry.arguments?.getLong("wordId") ?: 0L
+                DetailScreen(wordId = wordId, onBack = { navController.popBackStack() })
+            }
         }
     }
 }

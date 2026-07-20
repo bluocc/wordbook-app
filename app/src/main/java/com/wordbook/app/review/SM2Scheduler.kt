@@ -4,7 +4,7 @@ import com.wordbook.app.data.entity.LearningProgress
 
 object SM2Scheduler {
 
-    fun calculate(quality: Int, now: Long, prev: LearningProgress?): LearningProgress {
+    fun calculate(quality: Int, now: Long, wordId: Long, prev: LearningProgress?): LearningProgress {
         val ef = prev?.easeFactor ?: 2.5f
         val reps = prev?.repetitions ?: 0
         val currentInterval = prev?.interval ?: 0
@@ -19,7 +19,7 @@ object SM2Scheduler {
             val newEase = (ef + efDelta).coerceAtLeast(1.3f)
 
             LearningProgress(
-                wordId = prev?.wordId ?: 0,
+                wordId = wordId,
                 easeFactor = newEase,
                 interval = newInterval,
                 repetitions = reps + 1,
@@ -30,7 +30,7 @@ object SM2Scheduler {
             )
         } else {
             LearningProgress(
-                wordId = prev?.wordId ?: 0,
+                wordId = wordId,
                 easeFactor = ef,
                 interval = 1,
                 repetitions = 0,

@@ -12,6 +12,8 @@ import com.wordbook.app.util.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.max
+import kotlin.random.Random
 
 class StudyViewModel : ViewModel() {
 
@@ -21,75 +23,108 @@ class StudyViewModel : ViewModel() {
     private val _words = MutableStateFlow<List<WordEntity>>(emptyList())
     val words: StateFlow<List<WordEntity>> = _words
 
-    private val _currentIndex = MutableStateFlow(0)
-    val currentIndex: StateFlow<Int> = _currentIndex
+    private val _currentWord = MutableStateFlow<WordEntity?>(null)
+    val currentWord: StateFlow<WordEntity?> = _currentWord
 
     private val _isFlipped = MutableStateFlow(false)
     val isFlipped: StateFlow<Boolean> = _isFlipped
 
-    private val _isFinished = MutableStateFlow(false)
-    val isFinished: StateFlow<Boolean> = _isFinished
-
     private val _mode = MutableStateFlow("learning")
     val mode: StateFlow<String> = _mode
 
-    private val _currentProgress = MutableStateFlow<LearningProgress?>(null)
-    val currentProgress: StateFlow<LearningProgress?> = _currentProgress
+    private val _totalRatings = MutableStateFlow(0)
+    val totalRatings: StateFlow<Int> = _totalRatings
+
+    private var currentIndex = -1
+    private var progressCache = mutableMapOf<Long, LearningProgress?>()
+    private var poolSize = 0
 
     fun init(wordIdsJson: String, mode: String) {
         _mode.value = mode
         viewModelScope.launch {
             val ids = jsonToWordIds(wordIdsJson)
-            val wordList = ids.mapNotNull { repository.getWordById(it) }
-            _words.value = wordList
-        }
-    }
+            val list = ids.mapNotNull { repository.getWordById(it) }
+            _words.value = list
+            poolSize = list.size
 
-    fun currentWord(): WordEntity? {
-        val list = _words.value
-        val idx = _currentIndex.value
-        return if (list.isNotEmpty() && idx < list.size) list[idx] else null
+            for (w in list) {
+                progressCache[w.id] = repository.getProgress(w.id)
+            }
+
+            if (list.isNotEmpty()) {
+                currentIndex = pickRandomIndex(-1)
+                _currentWord.value = list[currentIndex]
+            }
+        }
     }
 
     fun flip() {
         _isFlipped.value = !_isFlipped.value
     }
 
-    fun setFlipped(flipped: Boolean) {
-        _isFlipped.value = flipped
-    }
-
     fun rate(quality: Int) {
-        val word = currentWord() ?: return
+        val word = _currentWord.value ?: return
         viewModelScope.launch {
-            val prev = repository.getProgress(word.id)
             val now = DateUtils.nowMillis()
-            val progress = SM2Scheduler.calculate(quality, now, prev)
+            val prev = progressCache[word.id] ?: repository.getProgress(word.id)
+            val progress = SM2Scheduler.calculate(quality, now, word.id, prev)
             repository.upsertProgress(progress)
-            nextCard()
+            progressCache[word.id] = progress
+            _totalRatings.value++
+
+            _isFlipped.value = false
+            nextWord()
         }
     }
 
     fun skip() {
-        nextCard()
+        _isFlipped.value = false
+        nextWord()
     }
 
-    private fun nextCard() {
-        _isFlipped.value = false
-        val nextIdx = _currentIndex.value + 1
-        if (nextIdx >= _words.value.size) {
-            _isFinished.value = true
-        } else {
-            _currentIndex.value = nextIdx
+    private fun nextWord() {
+        val list = _words.value
+        if (list.isEmpty() || poolSize == 0) return
+
+        val nextIdx = pickRandomIndex(currentIndex)
+        if (nextIdx in list.indices) {
+            currentIndex = nextIdx
+            _currentWord.value = list[nextIdx]
         }
+    }
+
+    private fun pickRandomIndex(excludeIndex: Int): Int {
+        val list = _words.value
+        if (list.isEmpty()) return 0
+        if (poolSize == 1) return 0
+
+        val weights = list.mapIndexed { i, w ->
+            if (i == excludeIndex) 0f
+            else {
+                val p = progressCache[w.id]
+                if (p == null || p.lastQuality == 0) 6f
+                else (7f - p.lastQuality.coerceIn(1, 5)).coerceAtLeast(0.5f)
+            }
+        }
+
+        val totalWeight = weights.sum()
+        if (totalWeight <= 0f) {
+            return (list.indices).firstOrNull { it != excludeIndex } ?: 0
+        }
+
+        val r = Random.nextFloat() * totalWeight
+        var cumulative = 0f
+        for (i in weights.indices) {
+            if (i == excludeIndex) continue
+            cumulative += weights[i]
+            if (r <= cumulative) return i
+        }
+        return list.indices.lastOrNull { it != excludeIndex } ?: 0
     }
 
     fun getAllWords(): List<WordEntity> = _words.value
 
-    fun loadProgress() {
-        val word = currentWord() ?: return
-        viewModelScope.launch {
-            _currentProgress.value = repository.getProgress(word.id)
-        }
-    }
+    fun getProgressFor(wordId: Long): LearningProgress? = progressCache[wordId]
+
+    fun isLastSession(): Boolean = _totalRatings.value >= 5
 }
