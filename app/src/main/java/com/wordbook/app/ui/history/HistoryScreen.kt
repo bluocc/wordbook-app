@@ -1,5 +1,7 @@
 package com.wordbook.app.ui.history
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -8,7 +10,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,42 +48,55 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(items, key = { it.word.id }) { item ->
-                    val bgColor = if (item.progress != null) qualityColor(item.progress!!.lastQuality) else Grey
+                    val stateColor = if (item.progress != null && item.progress!!.lastQuality > 0)
+                        qualityColor(item.progress!!.lastQuality) else Grey
 
-                    Card(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(100.dp)
-                            .clickable { onWordClick(item.word.id) },
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = bgColor.copy(alpha = 0.12f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            .height(88.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White)
+                            .border(
+                                width = 2.dp,
+                                color = stateColor.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onWordClick(item.word.id) }
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .fillMaxHeight()
+                                .background(stateColor)
+                        )
                         Column(
-                            modifier = Modifier.fillMaxSize().padding(8.dp),
-                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
                                 text = item.word.word,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = bgColor,
+                                color = Color(0xFF333333),
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = item.word.pronunciation,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                fontSize = 9.sp,
+                                color = Color(0xFF999999),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = item.word.explanation,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                                fontSize = 10.sp,
+                                color = Color(0xFF666666),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center
