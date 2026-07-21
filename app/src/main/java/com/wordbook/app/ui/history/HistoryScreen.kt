@@ -31,6 +31,7 @@ import java.time.temporal.TemporalAdjusters
 @Composable
 fun HistoryScreen(
     onWordClick: (Long) -> Unit,
+    onStartReview: (List<com.wordbook.app.data.entity.WordEntity>) -> Unit,
     vm: HistoryViewModel = viewModel()
 ) {
     val items by vm.items.collectAsState()
@@ -93,8 +94,17 @@ fun HistoryScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(filterLabel, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            TextButton(onClick = { showCalendar = true }) {
-                Text("更多 ▾", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+            Row {
+                TextButton(onClick = {
+                    if (items.isNotEmpty()) {
+                        onStartReview(items.map { it.word })
+                    }
+                }) {
+                    Text("复习", fontSize = 14.sp, color = MaterialTheme.colorScheme.secondary)
+                }
+                TextButton(onClick = { showCalendar = true }) {
+                    Text("更多 ▾", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
 

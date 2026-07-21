@@ -94,7 +94,12 @@ fun NavGraph() {
             }
 
             composable(Screen.History.route) {
-                HistoryScreen(onWordClick = { id -> navController.navigate("detail/$id") })
+                HistoryScreen(
+                    onWordClick = { id -> navController.navigate("detail/$id") },
+                    onStartReview = { words ->
+                        navController.navigate("study/review/${wordListToJson(words)}")
+                    }
+                )
             }
 
             composable(
