@@ -37,23 +37,20 @@ fun HistoryScreen(
     val isLoading by vm.isLoading.collectAsState()
 
     val today = LocalDate.now()
-    var selectedDay by remember { mutableStateOf(today) }
-    var showCalendar by remember { mutableStateOf(false) }
-    var calendarMode by remember { mutableIntStateOf(0) } // 0=月 1=周 2=年
-    var calYear by remember { mutableIntStateOf(today.year) }
-    var calMonth by remember { mutableIntStateOf(today.monthValue) }
-
-    val weekDays = listOf("一", "二", "三", "四", "五", "六", "日")
     val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val weekDays = listOf("一", "二", "三", "四", "五", "六", "日")
+
+    var filterMode by remember { mutableIntStateOf(0) } // 0=日 1=周 2=月 3=年
+    var selectedDay by remember { mutableStateOf(today) }
+    var filterLabel by remember { mutableStateOf("${today.monthValue}月${today.dayOfMonth}日") }
+    var showCalendar by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedDay) {
-        val start = DateUtils.dayToEpoch(selectedDay.year, selectedDay.monthValue, selectedDay.dayOfMonth)
-        vm.loadByDate(start, start + 24 * 60 * 60 * 1000L)
+        applyDayFilter(selectedDay, vm)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(text = "学习历史", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-
         Spacer(modifier = Modifier.height(10.dp))
 
         Row(
@@ -62,42 +59,42 @@ fun HistoryScreen(
         ) {
             weekDays.forEachIndexed { i, name ->
                 val d = weekStart.plusDays(i.toLong())
-                val isSel = d == selectedDay
+                val isSel = selectedDay == d || (filterMode > 0 && isInFilterRange(d))
                 val isToday = d == today
 
                 FilterChip(
                     selected = isSel,
-                    onClick = { selectedDay = d },
-                    label = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(name, fontSize = 10.sp, color = if (isSel) MaterialTheme.colorScheme.primary else Color.Gray)
-                            Text(
-                                "${d.dayOfMonth}",
-                                fontSize = 13.sp,
-                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSel) MaterialTheme.colorScheme.primary else Color(0xFF333333)
-                            )
-                        }
+                    onClick = {
+                        filterMode = 0
+                        selectedDay = d
+                        filterLabel = "${d.monthValue}月${d.dayOfMonth}日"
                     },
-                    modifier = Modifier.weight(1f).padding(horizontal = 1.dp)
+                    label = {
+                        Text(
+                            name,
+                            fontSize = 13.sp,
+                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.weight(1f).padding(horizontal = 2.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "${selectedDay.year}/${selectedDay.monthValue}/${selectedDay.dayOfMonth}",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
+            Text(filterLabel, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             TextButton(onClick = { showCalendar = true }) {
-                Text("更多 ▾", fontSize = 13.sp)
+                Text("更多 ▾", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -107,7 +104,7 @@ fun HistoryScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("该日期暂无学习记录", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Text("暂无学习记录", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
         } else {
             LazyVerticalGrid(
@@ -149,35 +146,41 @@ fun HistoryScreen(
     if (showCalendar) {
         ModalBottomSheet(onDismissRequest = { showCalendar = false }) {
             CalendarSheet(
-                mode = calendarMode,
-                year = calYear,
-                month = calMonth,
-                onModeChange = { calendarMode = it },
-                onYearChange = { calYear = it },
-                onMonthChange = { calMonth = it },
+                year = today.year,
+                month = today.monthValue,
                 onDaySelected = { y, m, d ->
+                    filterMode = 0
                     selectedDay = LocalDate.of(y, m, d)
+                    filterLabel = "${m}月${d}日"
                     showCalendar = false
                 },
-                onWeekSelected = { startOfWeek ->
-                    selectedDay = startOfWeek
-                    showCalendar = false
-                    val end = startOfWeek.plusDays(6)
-                    val s = DateUtils.dayToEpoch(startOfWeek.year, startOfWeek.monthValue, startOfWeek.dayOfMonth)
-                    val e = DateUtils.dayToEpoch(end.year, end.monthValue, end.dayOfMonth) + 24 * 60 * 60 * 1000L
-                    vm.loadByDate(s, e)
-                },
-                onMonthRangeSelected = { y, mn ->
-                    val s = DateUtils.dayToEpoch(y, mn, 1)
-                    val lastDay = DateUtils.daysInMonth(y, mn)
-                    val e = DateUtils.dayToEpoch(y, mn, lastDay) + 24 * 60 * 60 * 1000L
+                onWeekSelected = { start ->
+                    filterMode = 1
+                    selectedDay = start
+                    val end = start.plusDays(6)
+                    filterLabel = "第${start.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)}周"
+                    val s = DateUtils.dayToEpoch(start.year, start.monthValue, start.dayOfMonth)
+                    val e = DateUtils.dayToEpoch(end.year, end.monthValue, end.dayOfMonth) + 24L * 3600 * 1000
                     vm.loadByDate(s, e)
                     showCalendar = false
                 },
-                onYearRangeSelected = { y ->
+                onMonthSelected = { y, m ->
+                    filterMode = 2
+                    filterLabel = "${y}年${DateUtils.monthName(y, m)}"
+                    val s = DateUtils.dayToEpoch(y, m, 1)
+                    val lastDay = DateUtils.daysInMonth(y, m)
+                    val e = DateUtils.dayToEpoch(y, m, lastDay) + 24L * 3600 * 1000
+                    vm.loadByDate(s, e)
+                    selectedDay = LocalDate.of(y, m, 1)
+                    showCalendar = false
+                },
+                onYearSelected = { y ->
+                    filterMode = 3
+                    filterLabel = "${y}年"
                     val s = DateUtils.dayToEpoch(y, 1, 1)
-                    val e = DateUtils.dayToEpoch(y, 12, 31) + 24 * 60 * 60 * 1000L
+                    val e = DateUtils.dayToEpoch(y, 12, 31) + 24L * 3600 * 1000
                     vm.loadByDate(s, e)
+                    selectedDay = LocalDate.of(y, 1, 1)
                     showCalendar = false
                 }
             )
@@ -185,105 +188,71 @@ fun HistoryScreen(
     }
 }
 
+private fun applyDayFilter(day: LocalDate, vm: HistoryViewModel) {
+    val s = DateUtils.dayToEpoch(day.year, day.monthValue, day.dayOfMonth)
+    vm.loadByDate(s, s + 24L * 3600 * 1000)
+}
+
+private fun isInFilterRange(day: LocalDate): Boolean = false
+
 @Composable
 private fun CalendarSheet(
-    mode: Int,
-    year: Int,
-    month: Int,
-    onModeChange: (Int) -> Unit,
-    onYearChange: (Int) -> Unit,
-    onMonthChange: (Int) -> Unit,
+    year: Int, month: Int,
     onDaySelected: (Int, Int, Int) -> Unit,
     onWeekSelected: (LocalDate) -> Unit,
-    onMonthRangeSelected: (Int, Int) -> Unit,
-    onYearRangeSelected: (Int) -> Unit
+    onMonthSelected: (Int, Int) -> Unit,
+    onYearSelected: (Int) -> Unit
 ) {
+    var mode by remember { mutableIntStateOf(0) }
+    var calYear by remember { mutableIntStateOf(year) }
+    var calMonth by remember { mutableIntStateOf(month) }
+    val modes = listOf("日", "周", "月", "年")
+
     Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            listOf("月", "周", "年").forEachIndexed { i, label ->
-                val sel = mode == i
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            modes.forEachIndexed { i, label ->
                 FilterChip(
-                    selected = sel,
-                    onClick = { onModeChange(i) },
+                    selected = mode == i,
+                    onClick = { mode = i },
                     label = { Text(label, fontSize = 14.sp) },
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = {
-                when (mode) {
-                    0 -> if (month == 1) { onYearChange(year - 1); onMonthChange(12) } else onMonthChange(month - 1)
-                    1 -> if (month == 1) { onYearChange(year - 1); onMonthChange(12) } else onMonthChange(month - 1)
-                    2 -> onYearChange(year - 1)
-                }
-            }) { Text("◀", fontSize = 18.sp) }
-
-            Text(
-                when (mode) {
-                    0 -> "${year}年 ${DateUtils.monthName(year, month)}"
-                    1 -> {
-                        val d = LocalDate.of(year, month, 1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                        "${d.year}年 ${DateUtils.monthName(d.year, d.monthValue)} 第${
-                            d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-                        }周"
-                    }
-                    else -> "${year}年"
-                },
-                fontSize = 18.sp, fontWeight = FontWeight.Medium
-            )
-
-            TextButton(onClick = {
-                when (mode) {
-                    0 -> if (month == 12) { onYearChange(year + 1); onMonthChange(1) } else onMonthChange(month + 1)
-                    1 -> if (month == 12) { onYearChange(year + 1); onMonthChange(1) } else onMonthChange(month + 1)
-                    2 -> onYearChange(year + 1)
-                }
-            }) { Text("▶", fontSize = 18.sp) }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         when (mode) {
-            0 -> MonthGrid(year, month) { d -> onDaySelected(year, month, d) }
-            1 -> {
-                WeekSelector(year, month) { w ->
-                    val mon = w.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                    onWeekSelected(mon)
-                }
-            }
-            else -> {
-                YearSelector(year) { y -> onYearRangeSelected(y) }
-            }
+            0 -> DayPicker(calYear, calMonth, { calYear = it }, { calMonth = it }) { d -> onDaySelected(calYear, calMonth, d) }
+            1 -> WeekPicker(calYear, calMonth, { calYear = it }, { calMonth = it }) { onWeekSelected(it) }
+            2 -> MonthPicker(calYear, { calYear = it }, onMonth = { m -> onMonthSelected(calYear, m) })
+            else -> YearPicker(calYear) { onYearSelected(it) }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun MonthGrid(year: Int, month: Int, onDayClick: (Int) -> Unit) {
+private fun DayPicker(
+    year: Int, month: Int,
+    onYearChange: (Int) -> Unit, onMonthChange: (Int) -> Unit,
+    onDayClick: (Int) -> Unit
+) {
     val today = LocalDate.now()
     val daysInMonth = DateUtils.daysInMonth(year, month)
     val firstDow = DateUtils.firstDayOfWeek(year, month)
-    val headers = listOf("日","一","二","三","四","五","六")
+
+    MonthYearHeader(year, month, onYearChange, onMonthChange)
 
     Row(Modifier.fillMaxWidth()) {
-        headers.forEach { Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 12.sp, color = Color.Gray) }
+        listOf("日","一","二","三","四","五","六").forEach {
+            Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 12.sp, color = Color.Gray)
+        }
     }
     Spacer(Modifier.height(4.dp))
 
-    LazyVerticalGrid(columns = GridCells.Fixed(7), modifier = Modifier.height(260.dp)) {
+    LazyVerticalGrid(columns = GridCells.Fixed(7), modifier = Modifier.height(240.dp)) {
         items((firstDow - 1 + daysInMonth)) { idx ->
             val day = idx - (firstDow - 1) + 1
             if (day < 1 || day > daysInMonth) {
@@ -292,12 +261,13 @@ private fun MonthGrid(year: Int, month: Int, onDayClick: (Int) -> Unit) {
                 val isToday = year == today.year && month == today.monthValue && day == today.dayOfMonth
                 Box(
                     Modifier.aspectRatio(1f).padding(2.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .then(if (isToday) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)) else Modifier)
+                        .clip(RoundedCornerShape(8.dp))
+                        .then(if (isToday) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier)
                         .clickable { onDayClick(day) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("$day", fontSize = 13.sp, color = if (isToday) MaterialTheme.colorScheme.primary else Color(0xFF333333),
+                    Text("$day", fontSize = 14.sp,
+                        color = if (isToday) Color.White else Color(0xFF333333),
                         fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal)
                 }
             }
@@ -306,10 +276,17 @@ private fun MonthGrid(year: Int, month: Int, onDayClick: (Int) -> Unit) {
 }
 
 @Composable
-private fun WeekSelector(year: Int, month: Int, onWeekClick: (LocalDate) -> Unit) {
-    val fisrtOf = LocalDate.of(year, month, 1)
-    val lastOf = fisrtOf.with(TemporalAdjusters.lastDayOfMonth())
-    var cursor = fisrtOf.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+private fun WeekPicker(
+    year: Int, month: Int,
+    onYearChange: (Int) -> Unit, onMonthChange: (Int) -> Unit,
+    onClick: (LocalDate) -> Unit
+) {
+    MonthYearHeader(year, month, onYearChange, onMonthChange)
+
+    val today = LocalDate.now()
+    val firstOf = LocalDate.of(year, month, 1)
+    val lastOf = firstOf.with(TemporalAdjusters.lastDayOfMonth())
+    var cursor = firstOf.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
     val weeks = mutableListOf<LocalDate>()
     while (cursor.isBefore(lastOf) || cursor == lastOf) {
@@ -318,29 +295,132 @@ private fun WeekSelector(year: Int, month: Int, onWeekClick: (LocalDate) -> Unit
     }
 
     Column {
-        weeks.forEach { start ->
+        weeks.forEachIndexed { i, start ->
             val end = start.plusDays(6)
-            TextButton(
-                onClick = { onWeekClick(start) },
-                modifier = Modifier.fillMaxWidth()
+            val isCurrent = !today.isBefore(start) && !today.isAfter(end)
+            Row(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .then(if (isCurrent) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)) else Modifier)
+                    .clickable { onClick(start) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("${start.monthValue}/${start.dayOfMonth} - ${end.monthValue}/${end.dayOfMonth}",
-                    fontSize = 14.sp)
+                Text(
+                    "${start.monthValue}/${start.dayOfMonth} - ${end.monthValue}/${end.dayOfMonth}",
+                    fontSize = 15.sp,
+                    color = if (isCurrent) MaterialTheme.colorScheme.primary else Color(0xFF333333),
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                )
             }
         }
     }
 }
 
 @Composable
-private fun YearSelector(year: Int, onClick: (Int) -> Unit) {
-    val years = (year - 2..year + 2).toList()
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        years.forEach { y ->
-            TextButton(onClick = { onClick(y) }, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Text("$y", fontSize = 16.sp,
-                    color = if (y == year) MaterialTheme.colorScheme.primary else Color.Gray,
-                    fontWeight = if (y == year) FontWeight.Bold else FontWeight.Normal)
+private fun MonthPicker(year: Int, onYearChange: (Int) -> Unit, onMonth: (Int) -> Unit) {
+    val today = LocalDate.now()
+    val months = (1..12).map { m ->
+        val mn = LocalDate.of(1, m, 1).month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+        mn
+    }
+
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = { onYearChange(year - 1) }) { Text("◀", fontSize = 20.sp) }
+        Text("${year}年", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        TextButton(onClick = { onYearChange(year + 1) }) { Text("▶", fontSize = 20.sp) }
+    }
+
+    Spacer(Modifier.height(12.dp))
+
+    LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(280.dp)) {
+        items(12) { idx ->
+            val m = idx + 1
+            val isThisMonth = year == today.year && m == today.monthValue
+            Box(
+                Modifier.aspectRatio(1f).padding(4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .then(if (isThisMonth) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+                    .clickable { onMonth(m) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "${m}月",
+                    fontSize = 15.sp,
+                    fontWeight = if (isThisMonth) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isThisMonth) Color.White else Color(0xFF333333)
+                )
             }
         }
     }
+}
+
+@Composable
+private fun YearPicker(year: Int, onYear: (Int) -> Unit) {
+    val now = LocalDate.now()
+    val startYear = now.year - 20
+    val years = (startYear..now.year + 2).toList()
+
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = {
+            val idx = years.indexOf(year)
+            if (idx > 0) onYear(years[idx - 1])
+        }) { Text("◀", fontSize = 20.sp) }
+        Text("${year}年", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        TextButton(onClick = {
+            val idx = years.indexOf(year)
+            if (idx < years.size - 1) onYear(years[idx + 1])
+        }) { Text("▶", fontSize = 20.sp) }
+    }
+
+    Spacer(Modifier.height(12.dp))
+
+    LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.height(300.dp)) {
+        items(years.size) { idx ->
+            val y = years[idx]
+            val isThisYear = y == now.year
+            Box(
+                Modifier.aspectRatio(1f).padding(4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .then(if (isThisYear) Modifier.background(MaterialTheme.colorScheme.primary) else Modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+                    .clickable { onYear(y) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "$y", fontSize = 15.sp,
+                    fontWeight = if (isThisYear) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isThisYear) Color.White else Color(0xFF333333)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthYearHeader(
+    year: Int, month: Int,
+    onYearChange: (Int) -> Unit, onMonthChange: (Int) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = {
+            if (month == 1) { onYearChange(year - 1); onMonthChange(12) } else onMonthChange(month - 1)
+        }) { Text("◀", fontSize = 18.sp) }
+        Text("${year}年 ${DateUtils.monthName(year, month)}", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        TextButton(onClick = {
+            if (month == 12) { onYearChange(year + 1); onMonthChange(1) } else onMonthChange(month + 1)
+        }) { Text("▶", fontSize = 18.sp) }
+    }
+    Spacer(Modifier.height(8.dp))
 }
