@@ -144,7 +144,11 @@ fun HistoryScreen(
     }
 
     if (showCalendar) {
-        ModalBottomSheet(onDismissRequest = { showCalendar = false }) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showCalendar = false },
+            sheetState = sheetState
+        ) {
             CalendarSheet(
                 year = today.year,
                 month = today.monthValue,
@@ -286,13 +290,17 @@ private fun WeekPicker(
     val today = LocalDate.now()
     val firstOf = LocalDate.of(year, month, 1)
     val lastOf = firstOf.with(TemporalAdjusters.lastDayOfMonth())
+    val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     var cursor = firstOf.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
     val weeks = mutableListOf<LocalDate>()
     while (cursor.isBefore(lastOf) || cursor == lastOf) {
-        weeks.add(cursor)
+        if (!cursor.isAfter(currentWeekStart)) {
+            weeks.add(cursor)
+        }
         cursor = cursor.plusWeeks(1)
     }
+    weeks.reverse()
 
     Column {
         weeks.forEachIndexed { i, start ->
@@ -363,7 +371,7 @@ private fun MonthPicker(year: Int, onYearChange: (Int) -> Unit, onMonth: (Int) -
 private fun YearPicker(year: Int, onYear: (Int) -> Unit) {
     val now = LocalDate.now()
     val startYear = now.year - 20
-    val years = (startYear..now.year + 2).toList()
+    val years = (startYear..now.year).toList().reversed()
 
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
