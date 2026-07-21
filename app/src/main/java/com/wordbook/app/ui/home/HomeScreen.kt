@@ -21,6 +21,8 @@ fun HomeScreen(
     val isLoading by vm.isLoading.collectAsState()
     val dueCount by vm.dueCount.collectAsState()
 
+    LaunchedEffect(Unit) { vm.refreshDueCount() }
+
     var showStudyDialog by remember { mutableStateOf(false) }
     var showReviewDialog by remember { mutableStateOf(false) }
     var studyCount by remember { mutableStateOf("10") }

@@ -26,6 +26,9 @@ interface WordDao {
     """)
     suspend fun getDueWords(now: Long, count: Int): List<WordEntity>
 
+    @Query("SELECT COUNT(*) FROM learning_progress WHERE nextReview <= :now")
+    suspend fun getDueCount(now: Long): Int
+
     @Query("SELECT * FROM words WHERE id = :id")
     suspend fun getWordById(id: Long): WordEntity?
 
@@ -42,6 +45,14 @@ interface WordDao {
     """)
     suspend fun getAllPoolWords(): List<WordEntity>
 
+    @Query("""
+        SELECT w.* FROM words w 
+        INNER JOIN learning_progress lp ON w.id = lp.wordId 
+        WHERE lp.addedToPool >= :start AND lp.addedToPool < :end
+        ORDER BY lp.addedToPool DESC
+    """)
+    suspend fun getPoolWordsByDate(start: Long, end: Long): List<WordEntity>
+
     @Query("SELECT * FROM learning_progress WHERE wordId = :wordId")
     fun observeProgress(wordId: Long): Flow<LearningProgress?>
 
@@ -51,6 +62,13 @@ interface WordDao {
         ORDER BY lp.addedToPool DESC
     """)
     suspend fun getAllProgress(): List<LearningProgress>
+
+    @Query("""
+        SELECT lp.* FROM learning_progress lp
+        WHERE lp.addedToPool >= :start AND lp.addedToPool < :end
+        ORDER BY lp.addedToPool DESC
+    """)
+    suspend fun getProgressByDate(start: Long, end: Long): List<LearningProgress>
 
     @Query("SELECT COUNT(*) FROM learning_progress WHERE lastReview > :startOfDay AND lastReview < :endOfDay")
     suspend fun getReviewedCountForDay(startOfDay: Long, endOfDay: Long): Int

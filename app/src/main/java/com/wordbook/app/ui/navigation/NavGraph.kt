@@ -1,14 +1,17 @@
 package com.wordbook.app.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -22,7 +25,6 @@ import com.wordbook.app.ui.example.ExampleScreen
 import com.wordbook.app.ui.detail.DetailScreen
 import com.wordbook.app.ui.history.HistoryScreen
 import com.wordbook.app.ui.home.HomeScreen
-import com.wordbook.app.ui.record.RecordScreen
 import com.wordbook.app.ui.study.StudyScreen
 import com.wordbook.app.ui.wordlist.WordListScreen
 import com.google.gson.Gson
@@ -30,10 +32,9 @@ import com.google.gson.Gson
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     data object Home : Screen("home", "首页", Icons.Filled.Home)
     data object History : Screen("history", "历史", Icons.Filled.List)
-    data object Record : Screen("record", "记录", Icons.Filled.CalendarMonth)
 }
 
-val bottomTabs = listOf(Screen.Home, Screen.History, Screen.Record)
+val bottomTabs = listOf(Screen.Home, Screen.History)
 
 fun wordListToJson(words: List<WordEntity>): String = Gson().toJson(words.map { it.id })
 
@@ -51,7 +52,7 @@ fun NavGraph() {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                NavigationBar(containerColor = Color.Transparent) {
                     bottomTabs.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = screen.label) },
@@ -75,7 +76,11 @@ fun NavGraph() {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(animationSpec = tween(0)) },
+            exitTransition = { fadeOut(animationSpec = tween(0)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(0)) },
+            popExitTransition = { fadeOut(animationSpec = tween(0)) }
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
@@ -90,10 +95,6 @@ fun NavGraph() {
 
             composable(Screen.History.route) {
                 HistoryScreen(onWordClick = { id -> navController.navigate("detail/$id") })
-            }
-
-            composable(Screen.Record.route) {
-                RecordScreen()
             }
 
             composable(

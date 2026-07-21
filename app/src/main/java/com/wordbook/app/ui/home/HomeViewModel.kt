@@ -24,8 +24,14 @@ class HomeViewModel : ViewModel() {
     init {
         viewModelScope.launch {
             repository.loadWordData(WordbookApp.instance)
+            refreshDueCount()
+        }
+    }
+
+    fun refreshDueCount() {
+        viewModelScope.launch {
             val now = DateUtils.nowMillis()
-            _dueCount.value = dao.getDueWords(now, 9999).size
+            _dueCount.value = dao.getDueCount(now)
             _isLoading.value = false
         }
     }
