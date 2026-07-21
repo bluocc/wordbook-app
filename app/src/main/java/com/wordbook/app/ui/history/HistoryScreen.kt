@@ -69,11 +69,11 @@ fun HistoryScreen(
                     selected = isSel,
                     onClick = { selectedDay = d },
                     label = {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(name, fontSize = 11.sp, color = if (isSel) MaterialTheme.colorScheme.primary else Color.Gray)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(name, fontSize = 10.sp, color = if (isSel) MaterialTheme.colorScheme.primary else Color.Gray)
                             Text(
                                 "${d.dayOfMonth}",
-                                fontSize = 15.sp,
+                                fontSize = 13.sp,
                                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSel) MaterialTheme.colorScheme.primary else Color(0xFF333333)
                             )
